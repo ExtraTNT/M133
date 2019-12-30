@@ -1,0 +1,427 @@
+mkdir
+cd
+rails new ./
+
+rails g model table1 //Album
+rails g model table2 //Song
+
+Create attributes:
+ -> db/migrate/ YYYYMMDDHHMMSS_create_albums.rb
+ class CreateAlbums < ActiveRecord::Migration[5.2]
+  def change
+    create_table :albums do |t|
+      t.string :band
+      t.string :title
+      t.integer :year
+      t.integer :no_songs
+      t.integer :duration
+      t.timestamps
+    end
+  end
+end
+
+-> /db/migrate/YYYYMMDDHHMMSS_create_songs.rb
+class CreateSongs < ActiveRecord::Migration[5.2]
+  def change
+    create_table :songs do |t|
+      t.integer :album_id
+      t.integer :position
+      t.string :title
+      t.integer :duration
+      t.timestamps
+    end
+  end
+end
+
+Assoations:
+-> models/album.rb 
+class Album < ApplicationRecord
+  has_many :songs, dependent::restrict_with_error
+  validates_presence_of :band
+  validates_presence_of :title
+end 
+
+/models/song.rb
+class Song < ApplicationRecord
+  belongs_to :album
+  validates_presence_of :title 
+end 
+ -> validates_presence_of -> make a attribut obligatory
+ 
+ create db:
+ rails db:migrate
+ 
+ add dummy data:
+ open console (rails c)
+  Album.create(band: "Robyn", title: "Honey", year: 2018)
+  Song.create(album_id: 1, title: "Missing U", duration: 297)
+  
+ Route:
+ -> config/routes.rb
+ 
+ Rails.application.routes.draw do
+  resources :albums  
+  resources :songs
+  root 'albums#index'
+end
+
+Methods and Views:
+Jede Route bzw. Aktion benötigt eine Methode im Controller, jedoch braucht es nicht in jedem Fall eine View:  
+•	index zeigt die Liste mit allen Fachgebieten (View albums#index). 
+•	new führt zum Formular, in dem ein neues Album erfasst werden kann (View albums#new). 
+•	create speichert das Album in die DB und ruft danach den Index auf (braucht keine eigene View). 
+•	show zeigt die Details eines Albums an (View albums#show, Zusatzaufgabe). 
+•	edit führt zum Formular, in dem ein Album bearbeitet werden kann (View albums#edit). 
+•	update speichert die Änderungen in die DB und ruft danach den Index auf (braucht keine eigene View). 
+•	destroy löscht auf der Indexseite ein Album und ruft den Index erneut auf (braucht keine eigene View). 
+
+Methode und View albums#index erstellen 
+-> /controllers/albums_controller.rb: 
+def index 
+  @albums = Album.all
+end 
+
+Datei index.html.erb im Verzeichnis /views/albums/ erstellen: 
+<div class="container">
+  <div class="row justify-content-center">
+    <h2>Alben</h2>
+  </div>
+</div>
+  <div class="container">
+    <table class="table table-hover">
+      <thead class="thead-light">
+         <tr>
+           <th>Band</th>
+           <th>Titel</th>
+           <th>Jahr</th>
+           <th>Dauer</th>
+           <th>Songs</th> <th colspan="2">
+           </th>
+         </tr>
+        </thead>
+        <tbody>
+          <% @albums.each do |a| %>
+          <tr>
+            <td><%= a.band %></td>
+            <td><%= a.title %></td>
+            <td><%= a.year %></td>
+            <td><%= a.duration %></td>
+            <td><%= a.no_songs %></td>
+            <td><%= link_to "Ändern", edit_album_path(a.id) %></td>
+            <td><%= link_to "Löschen", album_path(a.id), method: :delete %></td>
+          </tr> <% end %>
+        </tbody>
+    </table>
+    <%= link_to "Album erfassen", new_album_path %><br />
+     <%= link_to "Songs", songs_path %>
+</div> 
+
+Methode und View albums#new erstellen 
+-> /controllers/albums_controller.rb: 
+def new 
+end
+Datei new.html.erb im Verzeichnis app/views/albums/ erstellen
+<div class="container">
+  <div class="row justify-content-center">
+    <h2>Album erfassen</h2>
+  </div>
+</div>
+<div class="container">
+  <%= form_for :album, url: {action: "create"}, class: "form-horizontal" do |f| %>
+  <div class="row">
+    <div class="col-md-2 offset-md-1">
+    <%= f.label :band, "Band", class: "control-label" %>
+  </div> <div class="col-md-6">
+    <%= f.text_field :band, class: "form-control" %>
+  </div>
+</div>
+<div class="row">
+  <div class="col-md-2 offset-md-1">
+    <%= f.label :title, "Titel", class: "control-label" %>
+  </div>
+  <div class="col-md-6">
+    <%= f.text_field :title, class: "form-control" %>
+  </div>
+</div>
+<div class="row">
+  <div class="col-md-2 offset-md-1">
+    <%= f.label :year, "Jahr", class: "control-label" %>
+  </div> <div class="col-md-2">
+    <%= f.text_field :year, class: "form-control" %>
+    <br />
+  </div>
+</div>
+<div class="row">
+  <div class="col-md-2">
+  </div>
+  <div class="col-md-10">
+    <%= f.submit "Album speichern", class: "btn btn-success" %>
+    <%= link_to "Abbrechen", albums_path, class: "btn btn-danger" %>
+  </div>
+</div>
+<% end %>
+</div> 
+
+Methode albums#create erstellen 
+-> /controllers/albums_controller.rb
+def create
+    @album = Album.new(album_params)
+    if @album.save
+      redirect_to action: "index"
+    else
+      render action: "new"
+    end
+  end
+
+Methode und View albums#edit erstellen 
+-> /controllers/albums_controller.rb: 
+def edit
+    @album = Album.find(params[:id])
+ end
+ 
+Datei edit.html.erb im Verzeichnis /views/albums/ erstellen
+
+<div class="container">
+  <div class="row justify-content-center">
+    <h2>Album ändern</h2>
+  </div>
+</div>
+<div class="container">
+  <%= form_for @album, url: {action: "update"}, class: "form-horizontal" do |f| %>
+  <div class="row">
+    <div class="col-md-2 offset-md-1">
+    <%= f.label :band, "Band", class: "control-label" %>
+  </div> <div class="col-md-6">
+    <%= f.text_field :band, class: "form-control" %>
+  </div>
+</div>
+<div class="row">
+  <div class="col-md-2 offset-md-1">
+    <%= f.label :title, "Titel", class: "control-label" %>
+  </div>
+  <div class="col-md-6">
+    <%= f.text_field :title, class: "form-control" %>
+  </div>
+</div>
+<div class="row">
+  <div class="col-md-2 offset-md-1">
+    <%= f.label :year, "Jahr", class: "control-label" %>
+  </div> <div class="col-md-2">
+    <%= f.text_field :year, class: "form-control" %>
+    <br />
+  </div>
+</div>
+<div class="row">
+  <div class="col-md-2">
+  </div>
+  <div class="col-md-10">
+    <%= f.submit "Änderungen speichern", class: "btn btn-success" %>
+    <%= link_to "Abbrechen", albums_path, class: "btn btn-danger" %>
+  </div>
+</div>
+<% end %>
+</div
+
+Methode albums#update erstellen 
+-> /controllers/albums_controller.rb: 
+def update
+    @album = Album.find(params[:id])
+    if @album.update_attributes(album_params)
+      redirect_to action: "index"
+    else
+      render action: "edit"
+    end
+  end 
+
+Methode albums#destroy erstellen 
+-> /controllers/albums_controller.rb
+
+def destroy
+  Album.find(params[:id]).destroy
+  redirect_to action: "index"
+end 
+
+
+rails g controller Songs
+-> /controllers/songs_controller.rb
+
+class SongsController < ApplicationController
+  def index
+    @albums = Album.order(:band, :title)
+    @no_songs = Song.count
+  end
+
+  def new
+    @albums = Album.select("id, band || ': ' || title as album_name").order(:band, :title)
+  end
+
+  def create
+    @song = Song.new(song_params)
+    if @song.save
+      redirect_to action: "index"
+    else
+      @albums = Album.select("id, band || ': ' || title as album_name").order(:band, :title)
+      render action: "new"
+    end
+  end
+
+  def edit
+    @song = Song.find(params[:id])
+    @albums = Album.select("id, band || ': ' || title as album_name").order(:band, :title)
+  end
+
+  def update
+    @song = Song.find(params[:id])
+    if @song.update_attributes(song_params)
+      redirect_to action: "index"
+    else
+      @albums = Album.select("id, band || ': ' || title as album_name").order(:band, :title)
+      render action: "edit"
+    end
+  end
+
+  def destroy
+    Song.find(params[:id]).destroy
+    redirect_to action: "index"
+  end
+
+  def song_params
+    params.require(:song).permit(:album_id, :title, :duration)
+  end
+end
+
+songsViews
+edit:
+
+<div class="container">
+  <br />
+  <div class="row justify-content-center">
+    <h2>Song ändern</h2>
+  </div>
+</div>
+<div class="container">
+  <%= form_for @song, url: {action: "update"}, class: "form-horizontal" do |f| %>
+    <div class="row">
+      <div class="col-md-2 offset-md-1">
+        <%= f.label :album_id, "Album", class: "control-label" %>
+      </div>
+      <div class="col-md-4">
+        <%= f.collection_select :album_id, @albums, :id, :album_name, {}, {class: "form-control"} %>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-2 offset-md-1">
+        <%= f.label :title, "Titel", class: "control-label" %>
+      </div>
+      <div class="col-md-6">
+        <%= f.text_field :title, class: "form-control" %>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-2 offset-md-1">
+        <%= f.label :duration, "Dauer", class: "control-label" %>
+      </div>
+      <div class="col-md-2">
+        <%= f.text_field :duration, class: "form-control" %>
+      </div>
+    </div>
+    <br />
+    <br />
+    <div class="row">
+      <div class="col-md-2"> </div>
+      <div class="col-md-10">
+        <%= f.submit "Song speichern", class: "btn btn-success" %>
+        <%= link_to "Abbrechen", songs_path, class: "btn btn-danger" %>
+      </div>
+    </div>
+  <% end %>
+</div>
+
+index:
+
+<div class="container">
+  <br />
+  <div class="row justify-content-center">
+    <h2>Songs</h2>
+  </div>
+</div>
+<div class="container">
+  <table class="table table-hover">
+    <thead class="thead-light">
+      <tr>
+        <th>Band</th>
+        <th>Album</th>
+        <th>Nr.</th>
+        <th>Titel</th>
+        <th>Dauer</th>
+        <th colspan="2"> </th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @albums.each do |a| %>
+        <% a.songs.each do |s| %>
+          <tr>
+            <td><%= s.album.band %></td>
+            <td><%= s.album.title %></td>
+            <td><%= s.position %></td>
+            <td><%= s.title %></td>
+            <td><%= s.duration %></td>
+            <td><%= link_to "Ändern", edit_song_path(s.id) %></td>
+            <td><%= link_to "Löschen", song_path(s.id), method: :delete %></td>
+          </tr>
+        <% end %>
+      <% end %>
+      <tr><td colspan="7">Anzahl Songs: <%= @no_songs %></td></tr>
+    </tbody>
+  </table>
+  <%= link_to "Song erfassen", new_song_path %><br />
+  <%= link_to "Alben", albums_path %>
+</div>
+
+new:
+
+<div class="container">
+  <br />
+  <div class="row justify-content-center">
+    <h2>Song erfassen</h2>
+  </div>
+</div>
+<div class="container">
+  <%= form_for :song, url: {action: "create"}, class: "form-horizontal" do |f| %>
+    <div class="row">
+      <div class="col-md-2 offset-md-1">
+        <%= f.label :album_id, "Album", class: "control-label" %>
+      </div>
+      <div class="col-md-4">
+        <%= f.collection_select :album_id, @albums, :id, :album_name, {}, {class: "form-control"} %>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-2 offset-md-1">
+        <%= f.label :title, "Titel", class: "control-label" %>
+      </div>
+      <div class="col-md-6">
+        <%= f.text_field :title, class: "form-control" %>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-2 offset-md-1">
+        <%= f.label :duration, "Dauer", class: "control-label" %>
+      </div>
+      <div class="col-md-2">
+        <%= f.text_field :duration, class: "form-control" %>
+      </div>
+    </div>
+    <br />
+    <br />
+    <div class="row">
+      <div class="col-md-2"> </div>
+      <div class="col-md-10">
+        <%= f.submit "Song speichern", class: "btn btn-success" %>
+        <%= link_to "Abbrechen", songs_path, class: "btn btn-danger" %>
+      </div>
+    </div>
+  <% end %>
+</div>
+
+
